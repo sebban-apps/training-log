@@ -1,5 +1,5 @@
 /* Service worker: cache-first z aktualizacją w tle, żeby appka działała offline po pierwszym wczytaniu. */
-const CACHE_NAME = 'dziennik-treningowy-v2';
+const CACHE_NAME = 'dziennik-treningowy-v3';
 
 const ASSETS = [
   './',
@@ -18,6 +18,10 @@ const ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
+  './fonts/inter-latin-wght-normal.woff2',
+  './fonts/inter-latin-ext-wght-normal.woff2',
+  './fonts/manrope-latin-wght-normal.woff2',
+  './fonts/manrope-latin-ext-wght-normal.woff2',
 ];
 
 self.addEventListener('install', (event) => {

@@ -63,8 +63,8 @@
           <div class="sub">${UI.escapeHtml(ex.kategoria || '')} · ${ex.typ_pomiaru === 'czas' ? 'na czas' : 'na powtórzenia'}${ex.wymaga_sprzetu ? '' : ' · masa własna'}</div>
         </div>
         <div class="item-actions">
-          <button class="icon-btn" data-edit-ex="${ex.id}"><svg><use href="#i-edit"/></svg></button>
-          <button class="icon-btn danger" data-del-ex="${ex.id}"><svg><use href="#i-trash"/></svg></button>
+          <button class="icon-btn" data-edit-ex="${ex.id}" aria-label="Edytuj"><svg><use href="#i-edit"/></svg></button>
+          <button class="icon-btn danger" data-del-ex="${ex.id}" aria-label="Usuń"><svg><use href="#i-trash"/></svg></button>
         </div>
       </div>`
       )
@@ -102,7 +102,7 @@
     UI.openSheet(existing ? 'Edytuj ćwiczenie' : 'Nowe ćwiczenie', html, (body) => {
       body.querySelector('#f-ex-save').addEventListener('click', async () => {
         const nazwa = body.querySelector('#f-ex-nazwa').value.trim();
-        if (!nazwa) { UI.showToast('Podaj nazwę ćwiczenia'); return; }
+        if (!nazwa) { UI.showToast('Podaj nazwę ćwiczenia', 'error'); return; }
         const obj = {
           nazwa,
           kategoria: body.querySelector('#f-ex-kat').value.trim(),
@@ -125,7 +125,7 @@
     const list = document.getElementById('equipment-list');
     const items = await DB.getAll('equipment');
     if (items.length === 0) {
-      list.innerHTML = `<div class="empty-state"><div class="h-title">Brak sprzętu</div><p>Sprzęt jest opcjonalny — potrzebny tylko dla ćwiczeń, które go wymagają.</p></div>`;
+      list.innerHTML = `<div class="empty-state"><div class="h-title">Brak sprzętu</div><p>Sprzęt jest opcjonalny. Przyda się tylko przy ćwiczeniach, które go wymagają.</p></div>`;
       return;
     }
     list.innerHTML = items
@@ -134,8 +134,8 @@
       <div class="list-item">
         <div><div class="title">${UI.escapeHtml(eq.nazwa)}</div><div class="sub">${UI.escapeHtml(eq.typ || '')}</div></div>
         <div class="item-actions">
-          <button class="icon-btn" data-edit-eq="${eq.id}"><svg><use href="#i-edit"/></svg></button>
-          <button class="icon-btn danger" data-del-eq="${eq.id}"><svg><use href="#i-trash"/></svg></button>
+          <button class="icon-btn" data-edit-eq="${eq.id}" aria-label="Edytuj"><svg><use href="#i-edit"/></svg></button>
+          <button class="icon-btn danger" data-del-eq="${eq.id}" aria-label="Usuń"><svg><use href="#i-trash"/></svg></button>
         </div>
       </div>`
       )
@@ -161,7 +161,7 @@
     UI.openSheet(existing ? 'Edytuj sprzęt' : 'Nowy sprzęt', html, (body) => {
       body.querySelector('#f-eq-save').addEventListener('click', async () => {
         const nazwa = body.querySelector('#f-eq-nazwa').value.trim();
-        if (!nazwa) { UI.showToast('Podaj nazwę sprzętu'); return; }
+        if (!nazwa) { UI.showToast('Podaj nazwę sprzętu', 'error'); return; }
         const obj = { nazwa, typ: body.querySelector('#f-eq-typ').value.trim() };
         if (existing) obj.id = existing.id;
         await DB[existing ? 'put' : 'add']('equipment', obj);
@@ -191,8 +191,8 @@
           <div class="sub">${(t.cwiczenia || []).length} ćwiczeń${t.dni_tygodnia?.length ? ' · ' + t.dni_tygodnia.map((d) => dniLabel[d] || d).join(', ') : ''}</div>
         </div>
         <div class="item-actions">
-          <button class="icon-btn" data-edit-tpl="${t.id}"><svg><use href="#i-edit"/></svg></button>
-          <button class="icon-btn danger" data-del-tpl="${t.id}"><svg><use href="#i-trash"/></svg></button>
+          <button class="icon-btn" data-edit-tpl="${t.id}" aria-label="Edytuj"><svg><use href="#i-edit"/></svg></button>
+          <button class="icon-btn danger" data-del-tpl="${t.id}" aria-label="Usuń"><svg><use href="#i-trash"/></svg></button>
         </div>
       </div>`
       )
@@ -217,7 +217,7 @@
     const equipment = await DB.getAll('equipment');
 
     if (exercises.length === 0) {
-      UI.showToast('Najpierw dodaj przynajmniej jedno ćwiczenie w zakładce Ćwiczenia');
+      UI.showToast('Najpierw dodaj przynajmniej jedno ćwiczenie w zakładce Ćwiczenia', 'error');
       return;
     }
 
@@ -257,7 +257,7 @@
 
       body.querySelector('#f-tpl-save').addEventListener('click', async () => {
         const nazwa = body.querySelector('#f-tpl-nazwa').value.trim();
-        if (!nazwa) { UI.showToast('Podaj nazwę treningu'); return; }
+        if (!nazwa) { UI.showToast('Podaj nazwę treningu', 'error'); return; }
 
         syncTplRowsFromDom(body, exercises);
         const cwiczenia = state.tplRows.map(({ _rowId, ...row }) => row);
@@ -329,7 +329,7 @@
             <div class="field" style="margin-bottom:0"><label>${UI.unitLabel()} (opcjonalnie)</label><input type="number" class="tpl-row-kg" min="0" step="0.5" value="${UI.kgOut(row.docelowe_kg) ?? ''}" placeholder="masa własna" /></div>
             <div class="field" style="margin-bottom:0">
               <label>Sprzęt (opcjonalnie)</label>
-              <select class="tpl-row-sprzet"><option value="">— brak —</option>${UI.buildOptions(equipment, 'id', 'nazwa', row.sprzet_id)}</select>
+              <select class="tpl-row-sprzet"><option value="">Brak</option>${UI.buildOptions(equipment, 'id', 'nazwa', row.sprzet_id)}</select>
             </div>
           </div>
           <button type="button" class="btn btn-ghost btn-block tpl-row-remove" style="margin-top:10px">Usuń ćwiczenie z treningu</button>
@@ -356,7 +356,7 @@
     container.querySelectorAll('.tpl-row-remove').forEach((btn) =>
       btn.addEventListener('click', (e) => {
         const rowId = Number(e.target.closest('[data-row-id]').getAttribute('data-row-id'));
-        if (state.tplRows.length === 1) { UI.showToast('Trening musi mieć przynajmniej jedno ćwiczenie'); return; }
+        if (state.tplRows.length === 1) { UI.showToast('Trening musi mieć przynajmniej jedno ćwiczenie', 'error'); return; }
         syncTplRowsFromDom(body, exercises);
         state.tplRows = state.tplRows.filter((r) => r._rowId !== rowId);
         renderTplRows(body, exercises, equipment);
@@ -424,7 +424,7 @@
     const existingSession = scheduled.find((s) => s.data === iso);
 
     if (dayInfo.status === 'wykonany') {
-      UI.openSheet(iso, `<p style="color:var(--ink-dim)">Trening z tego dnia zobaczysz w panelu Historia.</p><button class="btn btn-ghost btn-block" id="f-sched-close">Zamknij</button>`, (body) => {
+      UI.openSheet(WorkoutUtils.formatDatePl(iso), `<p class="muted">Trening z tego dnia zobaczysz w panelu Historia.</p><button class="btn btn-ghost btn-block" id="f-sched-close">Zamknij</button>`, (body) => {
         body.querySelector('#f-sched-close').addEventListener('click', UI.closeSheet);
       });
       return;
@@ -433,10 +433,10 @@
     if (existingSession) {
       const tpl = templates.find((t) => t.id === existingSession.template_id);
       const html = `
-        <p><strong>${UI.escapeHtml(tpl?.nazwa || 'Trening (usunięty)')}</strong> · status: ${UI.escapeHtml(STATUS_TEXT[existingSession.status] || existingSession.status)}</p>
+        <div class="list-item" style="padding-top:0"><div><div class="title">${UI.escapeHtml(tpl?.nazwa || 'Trening (usunięty)')}</div><div class="sub">Status ${UI.escapeHtml(STATUS_TEXT[existingSession.status] || existingSession.status)}</div></div></div>
         <button class="btn btn-ghost btn-block" id="f-sched-skip">${existingSession.status === 'pominięta' ? 'Przywróć do planu' : 'Oznacz jako pominięty'}</button>
         <button class="btn btn-danger btn-block" id="f-sched-remove" style="margin-top:8px">Usuń z planu</button>`;
-      UI.openSheet(iso, html, (body) => {
+      UI.openSheet(WorkoutUtils.formatDatePl(iso), html, (body) => {
         body.querySelector('#f-sched-skip').addEventListener('click', async () => {
           const restoring = existingSession.status === 'pominięta';
           await DB.put('scheduled_sessions', { ...existingSession, status: restoring ? 'zaplanowana' : 'pominięta' });
@@ -455,12 +455,12 @@
     }
 
     if (templates.length === 0) {
-      UI.showToast('Najpierw utwórz trening w zakładce Treningi');
+      UI.showToast('Najpierw utwórz trening w zakładce Treningi', 'error');
       return;
     }
 
     const html = `
-      <div class="field"><label>Zaplanuj trening na ${iso}</label>
+      <div class="field"><label>Zaplanuj trening na ${WorkoutUtils.formatDatePl(iso)}</label>
         <select id="f-sched-tpl">${UI.buildOptions(templates, 'id', 'nazwa')}</select>
       </div>
       <button class="btn btn-primary btn-block" id="f-sched-save">Zaplanuj</button>`;

@@ -33,14 +33,14 @@
     const todaysScheduled = scheduled.find((s) => s.data === todayIso && s.status === 'zaplanowana');
     const alreadyDoneToday = history.some((e) => e.data === todayIso);
     if (alreadyDoneToday) {
-      todayCard.innerHTML = `<div class="list-item" style="border:none;padding:0"><div><div class="title">Trening dzisiaj zaliczony ✅</div><div class="sub">Wróć jutro po kolejną passę</div></div></div>`;
+      todayCard.innerHTML = `<div class="done-state"><span class="done-icon"><svg><use href="#i-check"/></svg></span><div><div class="title">Trening dzisiaj zaliczony</div><div class="sub muted">Wróć jutro po kolejny dzień passy</div></div></div>`;
     } else if (todaysScheduled) {
       const tpl = templates.find((t) => t.id === todaysScheduled.template_id);
       todayCard.innerHTML = `
-        <div class="list-item" style="border:none;padding:0 0 12px">
+        <div class="list-item" style="border:none;padding:0 0 var(--s3)">
           <div><div class="title">${UI.escapeHtml(tpl?.nazwa || 'Trening')}</div><div class="sub">${(tpl?.cwiczenia || []).length} ćwiczeń</div></div>
         </div>
-        <button class="btn btn-primary btn-block" id="dash-start-today">Rozpocznij</button>`;
+        <button class="btn btn-primary btn-block" id="dash-start-today"><svg><use href="#i-play"/></svg>Rozpocznij</button>`;
       document.getElementById('dash-start-today').addEventListener('click', async () => {
         if (!tpl) { UI.showToast('Ten trening został usunięty z planu'); return; }
         // od razu uruchom sesję z dzisiejszego planu (i powiąż ją z wpisem w harmonogramie)
@@ -61,7 +61,7 @@
         .map(
           (e) => `
         <div class="list-item">
-          <div><div class="title">${UI.escapeHtml(e.nazwa_treningu || 'Trening')}</div><div class="sub">${e.data} · ${WorkoutUtils.formatDuration(e.czas_trwania || 0)}</div></div>
+          <div><div class="title">${UI.escapeHtml(e.nazwa_treningu || 'Trening')}</div><div class="sub">${WorkoutUtils.formatDatePl(e.data)} · ${WorkoutUtils.formatDuration(e.czas_trwania || 0)}</div></div>
           <span class="badge badge-good">${(e.cwiczenia || []).length} ćw.</span>
         </div>`
         )

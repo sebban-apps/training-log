@@ -59,3 +59,11 @@ test('kalendarz: wykonany > pominięty > zaplanowany', () => {
   assert.equal(st('2026-11-07'), null);
   assert.equal(cal.days.length, 30);
 });
+
+test('formatDatePl pokazuje polską datę i rok tylko spoza bieżącego roku', () => {
+  const now = new Date(2026, 10, 3);
+  assert.match(U.formatDatePl('2026-11-02', now), /2 lis/);
+  assert.doesNotMatch(U.formatDatePl('2026-11-02', now), /2026/);
+  assert.match(U.formatDatePl('2025-12-31', now), /2025/);
+  assert.equal(U.formatDatePl('', now), '');
+});

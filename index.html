@@ -3,8 +3,20 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
-<meta name="theme-color" content="#14171a" />
+<meta name="theme-color" content="#101A20" id="meta-theme-color" />
+<meta name="color-scheme" content="light dark" />
 <title>Dziennik Treningowy</title>
+<script>
+  /* motyw ustawiany przed pierwszym rysowaniem, żeby nie mignął zły kolor */
+  (function () {
+    try {
+      var t = localStorage.getItem('dziennik.theme');
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  })();
+</script>
+<link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="icons/icon-192.png" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -35,13 +47,13 @@
     <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 1 3 6.7"/><path d="M3 20v-5h5"/></symbol>
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v13m0 0l-5-5m5 5l5-5M4 21h16"/></symbol>
     <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 21V8m0 0l-5 5m5-5l5 5M4 3h16"/></symbol>
-    <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M2 10v4M22 10v4M6 7v10M18 7v10M6 12h12"/></symbol>
+    <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M3 10v4M21 10v4M6.5 7v10M17.5 7v10M6.5 12h11"/></symbol>
   </defs>
 </svg>
 
 <header class="app-header">
-  <span class="h-title" id="header-title">Dziennik Treningowy</span>
-  <svg width="20" height="20"><use href="#i-dumbbell"/></svg>
+  <span class="brand-mark" aria-hidden="true"><svg><use href="#i-dumbbell"/></svg></span>
+  <h1 class="h-title" id="header-title">Dziennik Treningowy</h1>
 </header>
 
 <main id="views">
@@ -101,16 +113,17 @@
 
       <div id="timer-tab-rest" style="display:none">
         <div class="card">
-          <div class="timer-display num" id="rest-display">01:30</div>
+          <div class="timer-display num" id="rest-display" aria-live="polite">01:30</div>
+          <div class="rest-progress" aria-hidden="true"><span id="rest-progress-bar"></span></div>
           <div class="timer-controls">
-            <button class="btn btn-ghost" data-rest-preset="60">60s</button>
-            <button class="btn btn-ghost" data-rest-preset="90">90s</button>
-            <button class="btn btn-ghost" data-rest-preset="120">120s</button>
-            <button class="btn btn-ghost" data-rest-preset="180">180s</button>
+            <button class="btn btn-ghost rest-preset" data-rest-preset="60">60 s</button>
+            <button class="btn btn-ghost rest-preset active" data-rest-preset="90">90 s</button>
+            <button class="btn btn-ghost rest-preset" data-rest-preset="120">120 s</button>
+            <button class="btn btn-ghost rest-preset" data-rest-preset="180">180 s</button>
           </div>
           <div class="timer-controls">
-            <button class="btn btn-primary" id="btn-rest-toggle">Start</button>
-            <button class="btn btn-ghost" id="btn-rest-reset">Reset</button>
+            <button class="btn btn-primary" id="btn-rest-toggle"><svg><use href="#i-play"/></svg><span>Start</span></button>
+            <button class="btn btn-ghost" id="btn-rest-reset"><svg><use href="#i-reset"/></svg><span>Reset</span></button>
           </div>
         </div>
       </div>
@@ -119,17 +132,19 @@
     <!-- Aktywny trening -->
     <div id="active-session" style="display:none">
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="session-head">
           <div>
             <div class="eyebrow" id="active-session-name">Trening</div>
-            <div class="timer-display num" id="active-session-clock" style="font-size:28px">00:00</div>
+            <div class="timer-display num" id="active-session-clock">00:00</div>
           </div>
-          <button class="btn btn-ghost" id="btn-add-exercise-active">+ Ćwiczenie</button>
+          <button class="btn btn-ghost" id="btn-add-exercise-active"><svg><use href="#i-plus"/></svg>Ćwiczenie</button>
         </div>
       </div>
       <div id="active-exercise-list"></div>
-      <button class="btn btn-primary btn-block" id="btn-finish-session" style="margin-top:16px">Zakończ i zapisz trening</button>
-      <button class="btn btn-ghost btn-block" id="btn-cancel-session" style="margin-top:8px">Anuluj</button>
+      <div class="actions-stack">
+        <button class="btn btn-primary btn-block" id="btn-finish-session"><svg><use href="#i-check"/></svg>Zakończ i zapisz trening</button>
+        <button class="btn btn-ghost btn-block" id="btn-cancel-session">Anuluj</button>
+      </div>
     </div>
   </section>
 
@@ -149,15 +164,15 @@
     <div id="planner-tab-schedule" style="display:none">
       <div class="card">
         <div class="calendar-head">
-          <button class="calendar-nav-btn" id="sched-cal-prev"><svg><use href="#i-chev-l"/></svg></button>
+          <button class="calendar-nav-btn" id="sched-cal-prev" aria-label="Poprzedni miesiąc"><svg><use href="#i-chev-l"/></svg></button>
           <span class="month-label" id="sched-cal-label"></span>
-          <button class="calendar-nav-btn" id="sched-cal-next"><svg><use href="#i-chev-r"/></svg></button>
+          <button class="calendar-nav-btn" id="sched-cal-next" aria-label="Następny miesiąc"><svg><use href="#i-chev-r"/></svg></button>
         </div>
         <div class="calendar-grid" id="sched-cal-grid"></div>
         <div class="calendar-legend">
-          <div class="legend-item"><span class="legend-swatch" style="background:var(--accent)"></span>Wykonany</div>
-          <div class="legend-item"><span class="legend-swatch" style="border:1.5px dashed var(--ink-faint)"></span>Zaplanowany</div>
-          <div class="legend-item"><span class="legend-swatch" style="background:var(--warn-bg);border:1px solid var(--warn)"></span>Pominięty</div>
+          <div class="legend-item"><span class="legend-swatch done"></span>Wykonany</div>
+          <div class="legend-item"><span class="legend-swatch planned"></span>Zaplanowany</div>
+          <div class="legend-item"><span class="legend-swatch skipped"></span>Pominięty</div>
         </div>
       </div>
     </div>
@@ -170,18 +185,23 @@
       <div class="card" id="equipment-list"></div>
     </div>
 
-    <button class="fab" id="planner-fab"><svg><use href="#i-plus"/></svg></button>
+    <button class="fab" id="planner-fab" aria-label="Dodaj"><svg><use href="#i-plus"/></svg></button>
   </section>
 
   <!-- ============ 4. PANEL HISTORIA ============ -->
   <section class="view" id="view-history" aria-label="Historia i statystyki">
     <div class="card">
       <div class="calendar-head">
-        <button class="calendar-nav-btn" id="hist-cal-prev"><svg><use href="#i-chev-l"/></svg></button>
+        <button class="calendar-nav-btn" id="hist-cal-prev" aria-label="Poprzedni miesiąc"><svg><use href="#i-chev-l"/></svg></button>
         <span class="month-label" id="hist-cal-label"></span>
-        <button class="calendar-nav-btn" id="hist-cal-next"><svg><use href="#i-chev-r"/></svg></button>
+        <button class="calendar-nav-btn" id="hist-cal-next" aria-label="Następny miesiąc"><svg><use href="#i-chev-r"/></svg></button>
       </div>
       <div class="calendar-grid" id="hist-cal-grid"></div>
+      <div class="calendar-legend">
+        <div class="legend-item"><span class="legend-swatch done"></span>Wykonany</div>
+        <div class="legend-item"><span class="legend-swatch planned"></span>Zaplanowany</div>
+        <div class="legend-item"><span class="legend-swatch skipped"></span>Pominięty</div>
+      </div>
     </div>
 
     <div class="section-title">Rekordy życiowe</div>
@@ -209,8 +229,9 @@
       <div class="field">
         <label for="setting-theme">Motyw</label>
         <select id="setting-theme">
-          <option value="ciemny">Ciemny</option>
+          <option value="systemowy">Jak w telefonie</option>
           <option value="jasny">Jasny</option>
+          <option value="ciemny">Ciemny</option>
         </select>
       </div>
       <div class="field" style="margin-bottom:0">
@@ -221,9 +242,9 @@
 
     <div class="section-title">Kopia zapasowa</div>
     <div class="card">
-      <p style="color:var(--ink-dim);font-size:13px;margin-top:0">Dane trzymane są lokalnie na tym telefonie. Zrób kopię zapasową, żeby ich nie stracić przy czyszczeniu danych przeglądarki albo żeby przenieść je na inne urządzenie.</p>
+      <p class="hint">Dane trzymane są lokalnie na tym telefonie. Zrób kopię zapasową, żeby ich nie stracić przy czyszczeniu danych przeglądarki albo żeby przenieść je na inne urządzenie.</p>
       <button class="btn btn-ghost btn-block" id="btn-export-backup"><svg width="16" height="16"><use href="#i-download"/></svg> Eksportuj kopię (JSON)</button>
-      <button class="btn btn-ghost btn-block" id="btn-import-backup" style="margin-top:8px"><svg width="16" height="16"><use href="#i-upload"/></svg> Importuj kopię</button>
+      <button class="btn btn-ghost btn-block" id="btn-import-backup" style="margin-top:var(--s2)"><svg width="16" height="16"><use href="#i-upload"/></svg> Importuj kopię</button>
       <input type="file" id="import-file-input" accept="application/json" style="display:none" />
     </div>
 
@@ -249,13 +270,13 @@
     <div class="sheet-handle"></div>
     <div class="sheet-header">
       <span class="h-title" id="sheet-title">Formularz</span>
-      <button class="icon-btn" id="sheet-close"><svg><use href="#i-close"/></svg></button>
+      <button class="icon-btn" id="sheet-close" aria-label="Zamknij"><svg><use href="#i-close"/></svg></button>
     </div>
     <div id="sheet-body"></div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="js/db.js"></script>
 <script src="js/utils.js"></script>

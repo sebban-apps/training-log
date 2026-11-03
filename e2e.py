@@ -132,6 +132,20 @@ with sync_playwright() as p:
     left = [s for s in pg.evaluate("DB.getAll('scheduled_sessions')") if s["status"] == "zaplanowana"]
     check("usunięcie szablonu zdejmuje przyszłe wpisy z planu", len(left) == 0, left)
 
+    # --- motyw i fonty Modern Teal Signature
+    nav("profile")
+    pg.select_option("#setting-theme", "jasny"); pg.wait_for_timeout(300)
+    check("motyw jasny ustawia data-theme=light", pg.evaluate("document.documentElement.dataset.theme") == "light")
+    check("tło jasne zgodne z paletą", pg.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(245, 248, 247)")
+    pg.select_option("#setting-theme", "ciemny"); pg.wait_for_timeout(300)
+    check("tło ciemne zgodne z paletą", pg.evaluate("getComputedStyle(document.body).backgroundColor") == "rgb(16, 26, 32)")
+    pg.reload(); pg.wait_for_timeout(500)
+    check("motyw przetrwał przeładowanie", pg.evaluate("document.documentElement.dataset.theme") == "dark")
+    nav("profile"); pg.select_option("#setting-theme", "systemowy"); pg.wait_for_timeout(300)
+    check("motyw systemowy usuwa data-theme", pg.evaluate("document.documentElement.dataset.theme") is None)
+    pg.evaluate("document.fonts.ready")
+    check("fonty Manrope i Inter wczytane lokalnie", pg.evaluate("document.fonts.check('700 16px Manrope') && document.fonts.check('16px Inter') && [...document.fonts].some(f => f.family.includes('Manrope') && f.status === 'loaded')"))
+
     pg.screenshot(path="e2e-screenshot.png")
     b.close()
 

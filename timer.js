@@ -58,6 +58,7 @@
     document.querySelectorAll('[data-rest-preset]').forEach((btn) =>
       btn.addEventListener('click', () => {
         stopRest();
+        document.querySelectorAll('[data-rest-preset]').forEach((b) => b.classList.toggle('active', b === btn));
         state.restTotal = Number(btn.getAttribute('data-rest-preset'));
         state.restRemaining = state.restTotal;
         updateRestDisplay();
@@ -77,7 +78,7 @@
     });
 
     document.getElementById('btn-add-exercise-active').addEventListener('click', openAddExerciseToSession);
-    document.getElementById('btn-finish-session').addEventListener('click', finishSession);
+    document.getElementById('btn-finish-session').addEventListener('click', (e) => UI.withLoading(e.currentTarget, finishSession));
     document.getElementById('btn-cancel-session').addEventListener('click', () => {
       if (!UI.confirmAction('Anulować trening? Wpisane dane nie zostaną zapisane.')) return;
       stopSession(false);
@@ -115,7 +116,7 @@
     }
     if (state.restRemaining <= 0) state.restRemaining = state.restTotal;
     state.restEndsAt = Date.now() + state.restRemaining * 1000;
-    document.getElementById('btn-rest-toggle').textContent = 'Pauza';
+    setRestButton(true);
     clearInterval(state.restInterval);
     state.restInterval = setInterval(tickRest, 250);
     tickRest();
@@ -128,7 +129,7 @@
     if (state.restRemaining <= 0) {
       stopRest();
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-      UI.showToast('Koniec przerwy');
+      UI.showToast('Koniec przerwy', 'success');
     }
   }
 
@@ -136,11 +137,20 @@
     clearInterval(state.restInterval);
     state.restInterval = null;
     state.restEndsAt = null;
-    document.getElementById('btn-rest-toggle').textContent = 'Start';
+    setRestButton(false);
+  }
+
+  function setRestButton(running) {
+    const btn = document.getElementById('btn-rest-toggle');
+    btn.querySelector('use').setAttribute('href', running ? '#i-pause' : '#i-play');
+    btn.querySelector('span').textContent = running ? 'Pauza' : 'Start';
+    document.getElementById('rest-display').classList.toggle('running', running);
   }
 
   function updateRestDisplay() {
     document.getElementById('rest-display').textContent = WorkoutUtils.formatDuration(state.restRemaining);
+    const ratio = state.restTotal > 0 ? state.restRemaining / state.restTotal : 0;
+    document.getElementById('rest-progress-bar').style.transform = `scaleX(${Math.max(0, Math.min(1, ratio))})`;
   }
 
   /* ---------------- LISTA GOTOWYCH TRENINGÓW ---------------- */
@@ -189,7 +199,7 @@
 
   async function startFromTemplate(tpl, scheduledSessionId) {
     if (state.session) {
-      UI.showToast('Masz już trwający trening');
+      UI.showToast('Masz już trwający trening', 'error');
       return;
     }
     const exercisesLib = await DB.getAll('exercises');
@@ -241,7 +251,7 @@
 
   async function openAddExerciseToSession() {
     const exercisesLib = await DB.getAll('exercises');
-    if (exercisesLib.length === 0) { UI.showToast('Najpierw dodaj ćwiczenie w panelu Plan'); return; }
+    if (exercisesLib.length === 0) { UI.showToast('Najpierw dodaj ćwiczenie w panelu Plan', 'error'); return; }
     const html = `
       <div class="field"><label>Ćwiczenie</label><select id="f-add-ex">${UI.buildOptions(exercisesLib, 'id', 'nazwa')}</select></div>
       <button class="btn btn-primary btn-block" id="f-add-ex-save">Dodaj do treningu</button>`;
@@ -281,13 +291,13 @@
           )
           .join('');
         return `
-        <div class="card">
-          <div class="title" style="margin-bottom:8px">${UI.escapeHtml(ex.nazwa)}</div>
-          <div class="set-row" style="color:var(--ink-faint);font-size:10px;text-transform:uppercase">
+        <div class="card exercise-card">
+          <div class="title">${UI.escapeHtml(ex.nazwa)}</div>
+          <div class="set-row set-head">
             <span></span><span>${isTime ? 'Czas' : 'Powt.'}</span><span>${unitLbl}</span><span></span>
           </div>
           ${rows}
-          <button type="button" class="btn btn-ghost btn-block add-set-btn" data-ex="${exIdx}" style="margin-top:6px">+ Seria</button>
+          <button type="button" class="btn btn-ghost btn-block add-set-btn" data-ex="${exIdx}" style="margin-top:var(--s1)"><svg><use href="#i-plus"/></svg>Seria</button>
         </div>`;
       })
       .join('');
@@ -335,7 +345,7 @@
 
   async function finishSession() {
     if (!state.session) return;
-    if (state.session.exercises.length === 0) { UI.showToast('Dodaj przynajmniej jedno ćwiczenie'); return; }
+    if (state.session.exercises.length === 0) { UI.showToast('Dodaj przynajmniej jedno ćwiczenie', 'error'); return; }
     const elapsed = Math.floor((Date.now() - state.session.startedAt) / 1000);
     const entry = {
       // data startu, nie zakończenia: trening zaczęty przed północą liczy się do tamtego dnia
@@ -352,7 +362,7 @@
       if (sched) await DB.put('scheduled_sessions', { ...sched, status: 'wykonana' });
     }
     stopSession(true);
-    UI.showToast('Trening zapisany 💪');
+    UI.showToast('Trening zapisany', 'success');
     if (window.Dashboard) window.Dashboard.render();
   }
 

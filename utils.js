@@ -18,6 +18,16 @@
     return new Date(y, m - 1, d);
   }
 
+  /** '2026-11-02' -> 'pon., 2 lis' (z rokiem, gdy inny niż bieżący). Do list i nagłówków, nie do zapisu. */
+  function formatDatePl(iso, now) {
+    if (!iso) return '';
+    const d = isoToLocalDate(iso);
+    const ref = now || new Date();
+    const opts = { weekday: 'short', day: 'numeric', month: 'short' };
+    if (d.getFullYear() !== ref.getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString('pl-PL', opts);
+  }
+
   function formatDuration(totalSeconds) {
     const s = Math.max(0, Math.floor(totalSeconds));
     const h = Math.floor(s / 3600);
@@ -186,6 +196,7 @@
     dateToISO,
     isoToLocalDate,
     formatDuration,
+    formatDatePl,
     calcStreak,
     calcTotalSessions,
     calcVolumeInRange,

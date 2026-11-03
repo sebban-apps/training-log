@@ -14,7 +14,7 @@
   }
 
   async function render() {
-    const settings = (await DB.get('settings', 1)) || { id: 1, jednostki: 'kg', motyw: 'ciemny', cel_tygodniowy: 3 };
+    const settings = (await DB.get('settings', 1)) || { id: 1, jednostki: 'kg', motyw: 'systemowy', cel_tygodniowy: 3 };
     document.getElementById('setting-units').value = settings.jednostki;
     document.getElementById('setting-theme').value = settings.motyw;
     document.getElementById('setting-weekly-goal').value = settings.cel_tygodniowy;
@@ -22,9 +22,28 @@
     applyTheme(settings.motyw);
   }
 
+  const THEME_ATTR = { jasny: 'light', ciemny: 'dark' }; // 'systemowy' = brak atrybutu, decyduje telefon
+  const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
   function applyTheme(motyw) {
-    document.body.classList.toggle('theme-light', motyw === 'jasny');
+    const attr = THEME_ATTR[motyw];
+    if (attr) document.documentElement.setAttribute('data-theme', attr);
+    else document.documentElement.removeAttribute('data-theme');
+    // kopia w localStorage, żeby skrypt w <head> ustawił motyw przed pierwszym rysowaniem
+    try {
+      if (attr) localStorage.setItem('dziennik.theme', attr);
+      else localStorage.removeItem('dziennik.theme');
+    } catch (err) { /* brak dostępu do localStorage nie blokuje zmiany motywu */ }
+    syncThemeColor();
   }
+
+  /** Kolor paska systemowego (Android, iOS) zgodny z aktualnym tłem. */
+  function syncThemeColor() {
+    const meta = document.getElementById('meta-theme-color');
+    if (!meta) return;
+    meta.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#101A20');
+  }
+  if (darkQuery && darkQuery.addEventListener) darkQuery.addEventListener('change', syncThemeColor);
 
   async function saveSettings() {
     const settings = {
@@ -36,7 +55,7 @@
     await DB.put('settings', settings);
     UI.setSettings(settings);
     applyTheme(settings.motyw);
-    UI.showToast('Zapisano ustawienia');
+    UI.showToast('Zapisano ustawienia', 'success');
     if (window.Dashboard) window.Dashboard.render();
   }
 
@@ -52,7 +71,7 @@
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    UI.showToast('Pobrano kopię zapasową');
+    UI.showToast('Pobrano kopię zapasową', 'success');
   }
 
   function importBackup(e) {
@@ -64,11 +83,11 @@
         const dump = JSON.parse(reader.result);
         if (!UI.confirmAction('Import zastąpi obecne dane kopią zapasową. Kontynuować?')) return;
         await DB.importAll(dump);
-        UI.showToast('Zaimportowano kopię zapasową');
+        UI.showToast('Zaimportowano kopię zapasową', 'success');
         render();
         if (window.Dashboard) window.Dashboard.render();
       } catch (err) {
-        UI.showToast('Nieprawidłowy plik kopii zapasowej');
+        UI.showToast('Nieprawidłowy plik kopii zapasowej', 'error');
       }
     };
     reader.readAsText(file);
