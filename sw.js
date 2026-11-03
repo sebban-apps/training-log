@@ -1,5 +1,5 @@
 /* Service worker: cache-first z aktualizacją w tle, żeby appka działała offline po pierwszym wczytaniu. */
-const CACHE_NAME = 'dziennik-treningowy-v1';
+const CACHE_NAME = 'dziennik-treningowy-v2';
 
 const ASSETS = [
   './',

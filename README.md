@@ -40,3 +40,9 @@ W panelu **Profil** znajdziesz trzy opcje.
 * **Eksportuj kopię (JSON)** pobiera plik z całą bazą danych. Warto robić to co jakiś czas, bo wyczyszczenie danych przeglądarki bez kopii oznacza utratę wszystkiego.
 * **Importuj kopię** wczytuje wcześniej wyeksportowany plik, np. na nowym telefonie.
 * **Usuń wszystkie dane** czyści bazę od zera.
+
+## Testy
+
+Testy jednostkowe czystych funkcji (statystyki, kalendarz, jednostki, harmonogram) uruchamia polecenie `npm test`. Wymagany jest Node 20 lub nowszy.
+
+Test całej aplikacji w przeglądarce (`tests/e2e.py`) korzysta z Playwrighta. Najpierw uruchom serwer poleceniem `python3 -m http.server 8765` w folderze aplikacji, a potem w drugim terminalu `python3 tests/e2e.py`.
