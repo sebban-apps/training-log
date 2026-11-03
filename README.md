@@ -2,7 +2,7 @@
 
 Aplikacja do planowania i zapisywania treningów, która działa w przeglądarce telefonu jak zwykła aplikacja. Dane zostają na Twoim urządzeniu, a po pierwszym otwarciu wszystko działa bez internetu.
 
-**Otwórz aplikację** https://sebban03.github.io/training-log/
+**Otwórz aplikację** https://sebban-apps.github.io/training-log/
 
 ## Co potrafi
 
