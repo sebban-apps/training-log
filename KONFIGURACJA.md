@@ -63,7 +63,9 @@ js/                     moduły aplikacji (tabela wyżej)
 fonts/                  Inter i Manrope w woff2 oraz ich licencje
 icons/                  ikony 192, 512 i maskable 512
 tests/utils.test.js     testy jednostkowe (Node)
+tests/manifest.test.js  walidacja manifestu i tożsamości PWA (Node)
 tests/e2e.py            test całej aplikacji w przeglądarce (Playwright)
+tests/pwa_install.py    test instalacji kilku PWA z jednej domeny (Playwright)
 package.json            skrypt npm test
 README.md               instrukcja dla użytkownika
 KONFIGURACJA.md         ten plik
@@ -96,6 +98,30 @@ Starsze wpisy historii mogą nie mieć `typ_pomiaru`. Wtedy typ brany jest z bib
 | `js/planner.js` | `RECURRING_HORIZON_DAYS` | Na ile dni do przodu generować treningi z dni tygodnia (domyślnie 28) |
 | `js/timer.js` | `SESSION_KEY` | Klucz `localStorage` z trwającym treningiem (`dziennik.activeSession`) |
 | `index.html`, `js/profile.js` | `dziennik.theme` | Kopia wybranego motywu w `localStorage`, czytana przed pierwszym rysowaniem strony |
+| `manifest.json` | `id`, `start_url`, `scope` | Tożsamość instalacji PWA. **Nie zmieniać**, szczegóły w sekcji niżej |
+
+## Tożsamość aplikacji PWA
+
+Aplikacja działa pod adresem `https://sebban-apps.github.io/training-log/`. Na tej samej domenie są też Dziennik nauki (`/Journal-PWA/`) i Kalendarz nawyków (`/Calendar-PWA/`), dlatego każda z nich musi mieć własną, stałą tożsamość instalacji.
+
+| Pole | Wartość | Po rozwiązaniu |
+|---|---|---|
+| `id` | `/training-log/index.html` | `https://sebban-apps.github.io/training-log/index.html` |
+| `start_url` | `./index.html` | `https://sebban-apps.github.io/training-log/index.html` |
+| `scope` | `./` | `https://sebban-apps.github.io/training-log/` |
+
+**Dlaczego `id` jest pełną ścieżką.** Chrome rozwiązuje `id` względem samej domeny, a nie folderu z manifestem. Zapis `./index.html` dałby `https://sebban-apps.github.io/index.html`, czyli tożsamość, którą mógłby przypadkiem dostać każdy inny projekt z tej domeny. Sprawdzone w Chromium.
+
+**Dlaczego właśnie ta wartość.** Wcześniej manifest nie miał `id`, więc Chrome wyliczał tożsamość ze `start_url`. Wpisana wartość jest identyczna z tamtą, więc już zainstalowane kopie są dalej rozpoznawane jako ta sama aplikacja i nic się nie duplikuje.
+
+**Zasady na przyszłość**
+
+* Nie zmieniaj `id`, nawet przy zmianie nazwy, ikon albo pliku startowego. Zmiana `id` sprawi, że Chrome potraktuje aplikację jako nową i obok starej instalacji pojawi się druga.
+* `scope` obejmuje tylko folder `training-log/`, więc nie przechwytuje linków do innych projektów z domeny.
+* Zmiana nazwy repozytorium albo przeniesienie na inną domenę zmienia adres, a dane w przeglądarce są przypisane do domeny. Taka zmiana wymaga przeniesienia danych kopią zapasową i nowej instalacji.
+* Nowy projekt na tej samej domenie musi mieć własne `id` z własnym folderem (np. `/nowy-projekt/index.html`), nigdy skopiowane z tego pliku.
+
+**Przeniesienie z `sebban03` do `sebban-apps`.** Repozytorium było wcześniej pod adresem `sebban03.github.io/training-log/`. To inna domena, więc tamta instalacja jest osobną aplikacją z osobnymi danymi i nowy manifest jej nie usunie ani nie przejmie. Dane z niej trzeba wyeksportować w starej aplikacji (Profil, Eksportuj kopię) i zaimportować w nowej, a starą instalację odinstalować ręcznie.
 
 ## System wizualny
 
@@ -112,13 +138,13 @@ Od szerokości 960 px nawigacja przechodzi z dołu na lewą szynę, a arkusz z f
 
 ## Testy
 
-**Testy jednostkowe** (funkcje z `js/utils.js`)
+**Testy jednostkowe i manifestu**
 
 ```bash
 npm test
 ```
 
-Wymagany Node 20 lub nowszy, bez instalowania pakietów.
+Sprawdzają funkcje z `js/utils.js` oraz `manifest.json` (wymagane pola, stałe `id`, `start_url` w `scope`, zakres nieobejmujący innych projektów z domeny, istnienie i rozmiary ikon, odwołanie z `index.html`, kompletność listy plików w `sw.js`). Wymagany Node 20 lub nowszy, bez instalowania pakietów.
 
 **Test całej aplikacji** w przeglądarce headless sprawdza dodawanie ćwiczeń i treningów, harmonogram z dni tygodnia, start z panelu Start, przywracanie sesji po przeładowaniu, zapis do historii, jednostki, edycję wpisów, timer przerwy, przełączanie motywu, wczytanie lokalnych fontów i brak błędów w konsoli.
 
@@ -135,13 +161,25 @@ python3 tests/e2e.py
 
 Na końcu test zapisuje zrzut ekranu `e2e-screenshot.png`. Nie dodawaj go do repozytorium.
 
+**Test instalacji obok innych aplikacji** odtwarza układ GitHub Pages lokalnie. Wymaga folderu, w którym obok siebie leżą `training-log/`, `Journal-PWA/` i `Calendar-PWA/`. Instaluje wszystkie trzy w Chromium, sprawdza, że mają różne `id`, i uruchamia każdą, sprawdzając, czy otwiera się właściwy projekt.
+
+```bash
+# w folderze nadrzędnym z trzema projektami
+python3 -m http.server 8766
+python3 training-log/tests/pwa_install.py
+```
+
+**Po wdrożeniu** sprawdź prawdziwy adres w Chrome na komputerze. W DevTools otwórz zakładkę Application, sekcję Manifest. Pole **Computed App Id** musi pokazywać `https://sebban-apps.github.io/training-log/index.html`, a lista błędów ma być pusta.
+
 ## Publikacja na GitHub Pages
 
-1. Wrzuć zawartość folderu do katalogu głównego repozytorium (`index.html` musi być w korzeniu).
+1. Wrzuć zawartość folderu do katalogu głównego repozytorium `sebban-apps/training-log`, zachowując foldery `css/`, `js/`, `fonts/`, `icons/` i `tests/`.
 2. W repozytorium wejdź w **Settings → Pages** i wybierz gałąź `main` oraz folder `/ (root)`.
-3. Strona będzie dostępna pod `https://<użytkownik>.github.io/<repozytorium>/`.
+3. Aplikacja jest dostępna pod `https://sebban-apps.github.io/training-log/`.
 
-Ścieżki w aplikacji są względne (`./`), więc działa w dowolnym podfolderze.
+Ścieżki do plików są względne (`./`), więc aplikacja działa w podfolderze. Wyjątkiem jest `id` w manifeście, celowo przypięte do `/training-log/`.
+
+Pliki JS, CSS i ikony leżą tylko w swoich folderach. Luźne kopie tych plików w korzeniu repozytorium (np. `app.js`, `style.css`, `icon-192.png`) nie są używane i można je usunąć.
 
 ## Aktualizacje i wersje
 
@@ -154,6 +192,8 @@ Na końcu test zapisuje zrzut ekranu `e2e-screenshot.png`. Nie dodawaj go do rep
 ## Rozwiązywanie problemów
 
 **Po aktualizacji widać starą wersję.** Zamknij aplikację całkiem i otwórz ponownie. Jeśli to nie pomaga, sprawdź, czy `CACHE_NAME` został zmieniony.
+
+**Komunikat „Ta aplikacja jest już zainstalowana” albo otwiera się inna aplikacja.** Dwa projekty mają ten sam `id` albo zachodzące na siebie `scope`. Porównaj **Computed App Id** w DevTools obu aplikacji i uruchom `npm test`.
 
 **Brak przycisku instalacji.** Strona musi być otwarta przez HTTPS lub `localhost`, a `manifest.json` i ikony muszą się poprawnie wczytać (DevTools, zakładka Application, sekcja Manifest).
 

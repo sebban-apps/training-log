@@ -64,6 +64,15 @@ Stuknięcie w zaplanowany dzień pozwala oznaczyć go jako pominięty, przywróc
 2. Stuknij ikonę **Udostępnij** (kwadrat ze strzałką).
 3. Wybierz **Dodaj do ekranu początkowego** i zatwierdź.
 
+### Masz zainstalowaną wersję ze starego adresu?
+
+Aplikacja przeniosła się z `sebban03.github.io/training-log` pod adres podany wyżej. Stara instalacja jest dla telefonu osobną aplikacją z osobnymi danymi i sama się nie przeniesie.
+
+1. Otwórz starą aplikację i w panelu **Profil** stuknij **Eksportuj kopię (JSON)**.
+2. Zainstaluj aplikację z nowego adresu.
+3. W nowej aplikacji w panelu **Profil** stuknij **Importuj kopię** i wybierz zapisany plik.
+4. Gdy wszystko się zgadza, odinstaluj starą aplikację.
+
 Na iPhonie dane w karcie Safari i w aplikacji z ikony mogą być oddzielne. Zainstaluj więc aplikację, zanim zaczniesz wpisywać dane, albo przenieś je kopią zapasową.
 
 ## Telefon i komputer
