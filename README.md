@@ -2,7 +2,7 @@
 
 Offline'owa aplikacja (PWA) do planowania i śledzenia treningów. Działa w całości w przeglądarce telefonu, dane trzyma lokalnie, a po pierwszym wczytaniu nie wymaga internetu.
 
-**Otwórz aplikację** https://sebban03.github.io/training-log/
+**Otwórz aplikację** https://sebban-apps.github.io/training-log/
 
 ## Instalacja na telefonie
 
