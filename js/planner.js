@@ -63,8 +63,8 @@
           <div class="sub">${UI.escapeHtml(ex.kategoria || '')} · ${ex.typ_pomiaru === 'czas' ? 'na czas' : 'na powtórzenia'}${ex.wymaga_sprzetu ? '' : ' · masa własna'}</div>
         </div>
         <div class="item-actions">
-          <button class="icon-btn" data-edit-ex="${ex.id}"><svg><use href="#i-edit"/></svg></button>
-          <button class="icon-btn danger" data-del-ex="${ex.id}"><svg><use href="#i-trash"/></svg></button>
+          <button class="icon-btn" data-edit-ex="${ex.id}" aria-label="Edytuj"><svg><use href="#i-edit"/></svg></button>
+          <button class="icon-btn danger" data-del-ex="${ex.id}" aria-label="Usuń"><svg><use href="#i-trash"/></svg></button>
         </div>
       </div>`
       )
@@ -102,7 +102,7 @@
     UI.openSheet(existing ? 'Edytuj ćwiczenie' : 'Nowe ćwiczenie', html, (body) => {
       body.querySelector('#f-ex-save').addEventListener('click', async () => {
         const nazwa = body.querySelector('#f-ex-nazwa').value.trim();
-        if (!nazwa) { UI.showToast('Podaj nazwę ćwiczenia'); return; }
+        if (!nazwa) { UI.showToast('Podaj nazwę ćwiczenia', 'error'); return; }
         const obj = {
           nazwa,
           kategoria: body.querySelector('#f-ex-kat').value.trim(),
@@ -125,7 +125,7 @@
     const list = document.getElementById('equipment-list');
     const items = await DB.getAll('equipment');
     if (items.length === 0) {
-      list.innerHTML = `<div class="empty-state"><div class="h-title">Brak sprzętu</div><p>Sprzęt jest opcjonalny — potrzebny tylko dla ćwiczeń, które go wymagają.</p></div>`;
+      list.innerHTML = `<div class="empty-state"><div class="h-title">Brak sprzętu</div><p>Sprzęt jest opcjonalny. Przyda się tylko przy ćwiczeniach, które go wymagają.</p></div>`;
       return;
     }
     list.innerHTML = items
@@ -134,8 +134,8 @@
       <div class="list-item">
         <div><div class="title">${UI.escapeHtml(eq.nazwa)}</div><div class="sub">${UI.escapeHtml(eq.typ || '')}</div></div>
         <div class="item-actions">
-          <button class="icon-btn" data-edit-eq="${eq.id}"><svg><use href="#i-edit"/></svg></button>
-          <button class="icon-btn danger" data-del-eq="${eq.id}"><svg><use href="#i-trash"/></svg></button>
+          <button class="icon-btn" data-edit-eq="${eq.id}" aria-label="Edytuj"><svg><use href="#i-edit"/></svg></button>
+          <button class="icon-btn danger" data-del-eq="${eq.id}" aria-label="Usuń"><svg><use href="#i-trash"/></svg></button>
         </div>
       </div>`
       )
@@ -161,7 +161,7 @@
     UI.openSheet(existing ? 'Edytuj sprzęt' : 'Nowy sprzęt', html, (body) => {
       body.querySelector('#f-eq-save').addEventListener('click', async () => {
         const nazwa = body.querySelector('#f-eq-nazwa').value.trim();
-        if (!nazwa) { UI.showToast('Podaj nazwę sprzętu'); return; }
+        if (!nazwa) { UI.showToast('Podaj nazwę sprzętu', 'error'); return; }
         const obj = { nazwa, typ: body.querySelector('#f-eq-typ').value.trim() };
         if (existing) obj.id = existing.id;
         await DB[existing ? 'put' : 'add']('equipment', obj);
@@ -191,8 +191,8 @@
           <div class="sub">${(t.cwiczenia || []).length} ćwiczeń${t.dni_tygodnia?.length ? ' · ' + t.dni_tygodnia.map((d) => dniLabel[d] || d).join(', ') : ''}</div>
         </div>
         <div class="item-actions">
-          <button class="icon-btn" data-edit-tpl="${t.id}"><svg><use href="#i-edit"/></svg></button>
-          <button class="icon-btn danger" data-del-tpl="${t.id}"><svg><use href="#i-trash"/></svg></button>
+          <button class="icon-btn" data-edit-tpl="${t.id}" aria-label="Edytuj"><svg><use href="#i-edit"/></svg></button>
+          <button class="icon-btn danger" data-del-tpl="${t.id}" aria-label="Usuń"><svg><use href="#i-trash"/></svg></button>
         </div>
       </div>`
       )
@@ -202,8 +202,10 @@
     );
     list.querySelectorAll('[data-del-tpl]').forEach((btn) =>
       btn.addEventListener('click', async () => {
-        if (!UI.confirmAction('Usunąć ten trening?')) return;
-        await DB.remove('templates', Number(btn.getAttribute('data-del-tpl')));
+        if (!UI.confirmAction('Usunąć ten trening? Zniknie też z przyszłych dni w harmonogramie.')) return;
+        const tplId = Number(btn.getAttribute('data-del-tpl'));
+        await removeFutureScheduled(tplId, false);
+        await DB.remove('templates', tplId);
         UI.showToast('Usunięto trening');
         renderTemplates();
       })
@@ -215,7 +217,7 @@
     const equipment = await DB.getAll('equipment');
 
     if (exercises.length === 0) {
-      UI.showToast('Najpierw dodaj przynajmniej jedno ćwiczenie w zakładce Ćwiczenia');
+      UI.showToast('Najpierw dodaj przynajmniej jedno ćwiczenie w zakładce Ćwiczenia', 'error');
       return;
     }
 
@@ -248,41 +250,59 @@
       );
 
       body.querySelector('#f-tpl-add-row').addEventListener('click', () => {
+        syncTplRowsFromDom(body, exercises);
         state.tplRows.push(emptyTplRow(exercises[0].id));
         renderTplRows(body, exercises, equipment);
       });
 
       body.querySelector('#f-tpl-save').addEventListener('click', async () => {
         const nazwa = body.querySelector('#f-tpl-nazwa').value.trim();
-        if (!nazwa) { UI.showToast('Podaj nazwę treningu'); return; }
+        if (!nazwa) { UI.showToast('Podaj nazwę treningu', 'error'); return; }
 
-        const cwiczenia = state.tplRows.map((row) => {
-          const rowEl = body.querySelector(`[data-row-id="${row._rowId}"]`);
-          const exId = Number(rowEl.querySelector('.tpl-row-ex').value);
-          const ex = exercises.find((e) => e.id === exId);
-          const serie = Number(rowEl.querySelector('.tpl-row-serie').value) || 1;
-          const kgRaw = rowEl.querySelector('.tpl-row-kg').value;
-          const sprzetRaw = rowEl.querySelector('.tpl-row-sprzet').value;
-          const celRaw = rowEl.querySelector('.tpl-row-cel').value;
-          return {
-            exercise_id: exId,
-            docelowe_serie: serie,
-            docelowe_powt: ex.typ_pomiaru === 'czas' ? null : Number(celRaw) || null,
-            docelowe_czas: ex.typ_pomiaru === 'czas' ? Number(celRaw) || null : null,
-            docelowe_kg: kgRaw ? Number(kgRaw) : null,
-            sprzet_id: sprzetRaw ? Number(sprzetRaw) : null,
-          };
-        });
+        syncTplRowsFromDom(body, exercises);
+        const cwiczenia = state.tplRows.map(({ _rowId, ...row }) => row);
 
         const dni_tygodnia = Array.from(body.querySelectorAll('.day-toggle.on')).map((b) => b.getAttribute('data-day'));
+        const daysChanged = !existing || dni_tygodnia.slice().sort().join() !== (existing.dni_tygodnia || []).slice().sort().join();
 
-        const obj = { nazwa, opis: body.querySelector('#f-tpl-opis').value.trim(), cwiczenia, dni_tygodnia };
-        if (existing) obj.id = existing.id;
+        const obj = { ...(existing || {}), nazwa, opis: body.querySelector('#f-tpl-opis').value.trim(), cwiczenia, dni_tygodnia };
+        if (daysChanged) {
+          // dni się zmieniły: zdejmij przyszłe automatyczne wpisy tego treningu i wygeneruj je od nowa
+          if (existing) await removeFutureScheduled(existing.id, true);
+          obj.zaplanowano_do = null;
+        }
         await DB[existing ? 'put' : 'add']('templates', obj);
+        if (daysChanged) await syncRecurring();
         UI.closeSheet();
-        UI.showToast('Zapisano trening');
+        UI.showToast(dni_tygodnia.length && daysChanged ? 'Zapisano trening i dodano go do harmonogramu' : 'Zapisano trening');
         renderTemplates();
       });
+    });
+  }
+
+  /**
+   * Przepisuje to, co użytkownik wpisał w formularzu, do state.tplRows.
+   * Bez tego każde przerysowanie wierszy (zmiana ćwiczenia, dodanie, usunięcie)
+   * cofało niezapisane wartości we wszystkich wierszach.
+   */
+  function syncTplRowsFromDom(body, exercises) {
+    state.tplRows = state.tplRows.map((row) => {
+      const rowEl = body.querySelector(`[data-row-id="${row._rowId}"]`);
+      if (!rowEl) return row;
+      const exId = Number(rowEl.querySelector('.tpl-row-ex').value);
+      const ex = exercises.find((e) => e.id === exId) || exercises[0];
+      const celRaw = rowEl.querySelector('.tpl-row-cel').value;
+      const sprzetRaw = rowEl.querySelector('.tpl-row-sprzet').value;
+      const isTime = ex.typ_pomiaru === 'czas';
+      return {
+        _rowId: row._rowId,
+        exercise_id: exId,
+        docelowe_serie: Number(rowEl.querySelector('.tpl-row-serie').value) || 1,
+        docelowe_powt: isTime ? null : Number(celRaw) || null,
+        docelowe_czas: isTime ? Number(celRaw) || null : null,
+        docelowe_kg: UI.kgIn(rowEl.querySelector('.tpl-row-kg').value),
+        sprzet_id: sprzetRaw ? Number(sprzetRaw) : null,
+      };
     });
   }
 
@@ -306,10 +326,10 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div class="field" style="margin-bottom:8px"><label>Serie</label><input type="number" class="tpl-row-serie" min="1" value="${row.docelowe_serie || 3}" /></div>
             <div class="field" style="margin-bottom:8px"><label>${celLabel}</label><input type="number" class="tpl-row-cel" min="0" value="${cel ?? ''}" /></div>
-            <div class="field" style="margin-bottom:0"><label>Kg (opcjonalnie)</label><input type="number" class="tpl-row-kg" min="0" step="0.5" value="${row.docelowe_kg ?? ''}" placeholder="masa własna" /></div>
+            <div class="field" style="margin-bottom:0"><label>${UI.unitLabel()} (opcjonalnie)</label><input type="number" class="tpl-row-kg" min="0" step="0.5" value="${UI.kgOut(row.docelowe_kg) ?? ''}" placeholder="masa własna" /></div>
             <div class="field" style="margin-bottom:0">
               <label>Sprzęt (opcjonalnie)</label>
-              <select class="tpl-row-sprzet"><option value="">— brak —</option>${UI.buildOptions(equipment, 'id', 'nazwa', row.sprzet_id)}</select>
+              <select class="tpl-row-sprzet"><option value="">Brak</option>${UI.buildOptions(equipment, 'id', 'nazwa', row.sprzet_id)}</select>
             </div>
           </div>
           <button type="button" class="btn btn-ghost btn-block tpl-row-remove" style="margin-top:10px">Usuń ćwiczenie z treningu</button>
@@ -320,15 +340,24 @@
     container.querySelectorAll('.tpl-row-ex').forEach((sel) =>
       sel.addEventListener('change', (e) => {
         const rowId = Number(e.target.closest('[data-row-id]').getAttribute('data-row-id'));
+        syncTplRowsFromDom(body, exercises);
         const row = state.tplRows.find((r) => r._rowId === rowId);
+        // inny typ pomiaru = stary cel (np. 10 powt.) nie ma sensu jako czas, więc go czyścimy
+        const prevEx = exercises.find((x) => x.id === row.exercise_id);
+        const nextEx = exercises.find((x) => x.id === Number(e.target.value));
         row.exercise_id = Number(e.target.value);
+        if (prevEx && nextEx && prevEx.typ_pomiaru !== nextEx.typ_pomiaru) {
+          row.docelowe_powt = null;
+          row.docelowe_czas = null;
+        }
         renderTplRows(body, exercises, equipment);
       })
     );
     container.querySelectorAll('.tpl-row-remove').forEach((btn) =>
       btn.addEventListener('click', (e) => {
         const rowId = Number(e.target.closest('[data-row-id]').getAttribute('data-row-id'));
-        if (state.tplRows.length === 1) { UI.showToast('Trening musi mieć przynajmniej jedno ćwiczenie'); return; }
+        if (state.tplRows.length === 1) { UI.showToast('Trening musi mieć przynajmniej jedno ćwiczenie', 'error'); return; }
+        syncTplRowsFromDom(body, exercises);
         state.tplRows = state.tplRows.filter((r) => r._rowId !== rowId);
         renderTplRows(body, exercises, equipment);
       })
@@ -336,6 +365,47 @@
   }
 
   /* ---------------- HARMONOGRAM ---------------- */
+
+  // ile dni do przodu dopisujemy sesje z szablonów z ustawionymi dniami tygodnia
+  const RECURRING_HORIZON_DAYS = 28;
+
+  const STATUS_TEXT = { zaplanowana: 'zaplanowany', 'pominięta': 'pominięty', wykonana: 'wykonany' };
+
+  /**
+   * Dla każdego szablonu z dniami tygodnia dopisuje sesje na najbliższe 4 tygodnie.
+   * Szablon pamięta `zaplanowano_do`, więc dzień, który użytkownik sam usunął z planu,
+   * nie wraca przy kolejnym uruchomieniu. W dni, gdzie coś już jest w planie, nic nie dokładamy.
+   */
+  async function syncRecurring() {
+    const [templates, scheduled] = await Promise.all([DB.getAll('templates'), DB.getAll('scheduled_sessions')]);
+    const todayIso = WorkoutUtils.dateToISO(new Date());
+    const until = WorkoutUtils.addDaysIso(todayIso, RECURRING_HORIZON_DAYS - 1);
+    const taken = new Set(scheduled.map((s) => s.data));
+    let added = 0;
+    for (const tpl of templates) {
+      if (!tpl.dni_tygodnia || tpl.dni_tygodnia.length === 0) continue;
+      const from = tpl.zaplanowano_do && tpl.zaplanowano_do >= todayIso ? WorkoutUtils.addDaysIso(tpl.zaplanowano_do, 1) : todayIso;
+      if (from > until) continue;
+      for (const iso of WorkoutUtils.recurringDates(tpl.dni_tygodnia, from, until)) {
+        if (taken.has(iso)) continue;
+        await DB.add('scheduled_sessions', { data: iso, template_id: tpl.id, status: 'zaplanowana', auto: true });
+        taken.add(iso);
+        added += 1;
+      }
+      await DB.put('templates', { ...tpl, zaplanowano_do: until });
+    }
+    return added;
+  }
+
+  /** Usuwa przyszłe (od dziś), jeszcze niewykonane wpisy danego szablonu. onlyAuto = tylko te z dni tygodnia. */
+  async function removeFutureScheduled(templateId, onlyAuto) {
+    const todayIso = WorkoutUtils.dateToISO(new Date());
+    const scheduled = await DB.getAll('scheduled_sessions');
+    const toRemove = scheduled.filter(
+      (s) => s.template_id === templateId && s.data >= todayIso && s.status === 'zaplanowana' && (!onlyAuto || s.auto)
+    );
+    for (const s of toRemove) await DB.remove('scheduled_sessions', s.id);
+  }
 
   async function renderSchedule() {
     const [scheduled, history] = await Promise.all([DB.getAll('scheduled_sessions'), DB.getAll('history_entries')]);
@@ -354,7 +424,7 @@
     const existingSession = scheduled.find((s) => s.data === iso);
 
     if (dayInfo.status === 'wykonany') {
-      UI.openSheet(iso, `<p style="color:var(--ink-dim)">Trening z tego dnia zobaczysz w panelu Historia.</p><button class="btn btn-ghost btn-block" id="f-sched-close">Zamknij</button>`, (body) => {
+      UI.openSheet(WorkoutUtils.formatDatePl(iso), `<p class="muted">Trening z tego dnia zobaczysz w panelu Historia.</p><button class="btn btn-ghost btn-block" id="f-sched-close">Zamknij</button>`, (body) => {
         body.querySelector('#f-sched-close').addEventListener('click', UI.closeSheet);
       });
       return;
@@ -363,14 +433,15 @@
     if (existingSession) {
       const tpl = templates.find((t) => t.id === existingSession.template_id);
       const html = `
-        <p><strong>${UI.escapeHtml(tpl?.nazwa || 'Trening')}</strong> — status: ${UI.escapeHtml(existingSession.status)}</p>
-        <button class="btn btn-ghost btn-block" id="f-sched-skip">Oznacz jako pominięty</button>
+        <div class="list-item" style="padding-top:0"><div><div class="title">${UI.escapeHtml(tpl?.nazwa || 'Trening (usunięty)')}</div><div class="sub">Status ${UI.escapeHtml(STATUS_TEXT[existingSession.status] || existingSession.status)}</div></div></div>
+        <button class="btn btn-ghost btn-block" id="f-sched-skip">${existingSession.status === 'pominięta' ? 'Przywróć do planu' : 'Oznacz jako pominięty'}</button>
         <button class="btn btn-danger btn-block" id="f-sched-remove" style="margin-top:8px">Usuń z planu</button>`;
-      UI.openSheet(iso, html, (body) => {
+      UI.openSheet(WorkoutUtils.formatDatePl(iso), html, (body) => {
         body.querySelector('#f-sched-skip').addEventListener('click', async () => {
-          await DB.put('scheduled_sessions', { ...existingSession, status: 'pominięta' });
+          const restoring = existingSession.status === 'pominięta';
+          await DB.put('scheduled_sessions', { ...existingSession, status: restoring ? 'zaplanowana' : 'pominięta' });
           UI.closeSheet();
-          UI.showToast('Oznaczono jako pominięty');
+          UI.showToast(restoring ? 'Przywrócono do planu' : 'Oznaczono jako pominięty');
           renderSchedule();
         });
         body.querySelector('#f-sched-remove').addEventListener('click', async () => {
@@ -384,12 +455,12 @@
     }
 
     if (templates.length === 0) {
-      UI.showToast('Najpierw utwórz trening w zakładce Treningi');
+      UI.showToast('Najpierw utwórz trening w zakładce Treningi', 'error');
       return;
     }
 
     const html = `
-      <div class="field"><label>Zaplanuj trening na ${iso}</label>
+      <div class="field"><label>Zaplanuj trening na ${WorkoutUtils.formatDatePl(iso)}</label>
         <select id="f-sched-tpl">${UI.buildOptions(templates, 'id', 'nazwa')}</select>
       </div>
       <button class="btn btn-primary btn-block" id="f-sched-save">Zaplanuj</button>`;
@@ -403,5 +474,5 @@
     });
   }
 
-  window.Planner = { init, render, renderTemplates, renderSchedule };
+  window.Planner = { init, render, renderTemplates, renderSchedule, syncRecurring };
 })();

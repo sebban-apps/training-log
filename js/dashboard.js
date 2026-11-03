@@ -20,8 +20,10 @@
     document.getElementById('dash-total-sessions').textContent = WorkoutUtils.calcTotalSessions(history);
 
     const weekStart = WorkoutUtils.dateToISO(WorkoutUtils.startOfWeek(today));
-    const weekVolume = Math.round(WorkoutUtils.calcVolumeInRange(history, weekStart, todayIso));
+    const weekVolumeKg = WorkoutUtils.calcVolumeInRange(history, weekStart, todayIso);
+    const weekVolume = Math.round(UI.kgOut(weekVolumeKg) || 0);
     document.getElementById('dash-week-volume').textContent = weekVolume.toLocaleString('pl-PL');
+    document.getElementById('dash-week-volume-label').textContent = `${UI.unitLabel()} w tym tygodniu`;
 
     const sessionsThisWeek = history.filter((e) => e.data >= weekStart && e.data <= todayIso).length;
     document.getElementById('dash-week-goal').textContent = `${sessionsThisWeek}/${settings.cel_tygodniowy ?? 3}`;
@@ -31,15 +33,18 @@
     const todaysScheduled = scheduled.find((s) => s.data === todayIso && s.status === 'zaplanowana');
     const alreadyDoneToday = history.some((e) => e.data === todayIso);
     if (alreadyDoneToday) {
-      todayCard.innerHTML = `<div class="list-item" style="border:none;padding:0"><div><div class="title">Trening dzisiaj zaliczony ✅</div><div class="sub">Wróć jutro po kolejną passę</div></div></div>`;
+      todayCard.innerHTML = `<div class="done-state"><span class="done-icon"><svg><use href="#i-check"/></svg></span><div><div class="title">Trening dzisiaj zaliczony</div><div class="sub muted">Wróć jutro po kolejny dzień passy</div></div></div>`;
     } else if (todaysScheduled) {
       const tpl = templates.find((t) => t.id === todaysScheduled.template_id);
       todayCard.innerHTML = `
-        <div class="list-item" style="border:none;padding:0 0 12px">
+        <div class="list-item" style="border:none;padding:0 0 var(--s3)">
           <div><div class="title">${UI.escapeHtml(tpl?.nazwa || 'Trening')}</div><div class="sub">${(tpl?.cwiczenia || []).length} ćwiczeń</div></div>
         </div>
-        <button class="btn btn-primary btn-block" id="dash-start-today">Rozpocznij</button>`;
-      document.getElementById('dash-start-today').addEventListener('click', () => {
+        <button class="btn btn-primary btn-block" id="dash-start-today"><svg><use href="#i-play"/></svg>Rozpocznij</button>`;
+      document.getElementById('dash-start-today').addEventListener('click', async () => {
+        if (!tpl) { UI.showToast('Ten trening został usunięty z planu'); return; }
+        // od razu uruchom sesję z dzisiejszego planu (i powiąż ją z wpisem w harmonogramie)
+        await window.Timer.startFromTemplate(tpl, todaysScheduled.id);
         window.App.switchView('timer');
       });
     } else {
@@ -56,7 +61,7 @@
         .map(
           (e) => `
         <div class="list-item">
-          <div><div class="title">${UI.escapeHtml(e.nazwa_treningu || 'Trening')}</div><div class="sub">${e.data} · ${WorkoutUtils.formatDuration(e.czas_trwania || 0)}</div></div>
+          <div><div class="title">${UI.escapeHtml(e.nazwa_treningu || 'Trening')}</div><div class="sub">${WorkoutUtils.formatDatePl(e.data)} · ${WorkoutUtils.formatDuration(e.czas_trwania || 0)}</div></div>
           <span class="badge badge-good">${(e.cwiczenia || []).length} ćw.</span>
         </div>`
         )

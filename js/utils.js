@@ -18,6 +18,16 @@
     return new Date(y, m - 1, d);
   }
 
+  /** '2026-11-02' -> 'pon., 2 lis' (z rokiem, gdy inny niż bieżący). Do list i nagłówków, nie do zapisu. */
+  function formatDatePl(iso, now) {
+    if (!iso) return '';
+    const d = isoToLocalDate(iso);
+    const ref = now || new Date();
+    const opts = { weekday: 'short', day: 'numeric', month: 'short' };
+    if (d.getFullYear() !== ref.getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString('pl-PL', opts);
+  }
+
   function formatDuration(totalSeconds) {
     const s = Math.max(0, Math.floor(totalSeconds));
     const h = Math.floor(s / 3600);
@@ -129,11 +139,64 @@
     return { firstWeekday: firstDay.getDay(), days };
   }
 
+  /* ---------------- JEDNOSTKI ----------------
+   * W bazie ciężar jest ZAWSZE trzymany w kg. Funty istnieją tylko na granicy UI
+   * (wyświetlanie i wpisywanie), więc zmiana ustawienia nie psuje starych danych.
+   */
+  const KG_PER_LB = 0.45359237;
+
+  /** kg z bazy -> liczba do pokazania w wybranej jednostce (zaokrąglona do 0.5 dla lb, 0.01 dla kg). */
+  function kgToDisplay(kg, unit) {
+    if (kg === null || kg === undefined || kg === '') return null;
+    if (unit === 'lb') return Math.round((kg / KG_PER_LB) * 2) / 2;
+    return Math.round(kg * 100) / 100;
+  }
+
+  /** liczba wpisana przez użytkownika w wybranej jednostce -> kg do zapisu w bazie. */
+  function displayToKg(value, unit) {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    if (unit === 'lb') return Math.round(n * KG_PER_LB * 1000) / 1000;
+    return n;
+  }
+
+  function unitLabel(unit) {
+    return unit === 'lb' ? 'lb' : 'kg';
+  }
+
+  /* ---------------- CYKLICZNY HARMONOGRAM ---------------- */
+  // klucze dni jak w szablonach; indeks = JS getDay() (niedz=0)
+  const DAY_KEYS_BY_JS_WEEKDAY = ['nd', 'pon', 'wt', 'sr', 'czw', 'pt', 'sob'];
+
+  function addDaysIso(iso, n) {
+    const d = isoToLocalDate(iso);
+    d.setDate(d.getDate() + n);
+    return dateToISO(d);
+  }
+
+  /** Wszystkie daty ISO z zakresu [fromIso, toIso] wypadające w podane dni tygodnia (np. ['pon','czw']). */
+  function recurringDates(dniTygodnia, fromIso, toIso) {
+    const wanted = new Set(dniTygodnia || []);
+    if (wanted.size === 0 || fromIso > toIso) return [];
+    const out = [];
+    for (let iso = fromIso; iso <= toIso; iso = addDaysIso(iso, 1)) {
+      if (wanted.has(DAY_KEYS_BY_JS_WEEKDAY[isoToLocalDate(iso).getDay()])) out.push(iso);
+    }
+    return out;
+  }
+
   const api = {
     pad2,
+    kgToDisplay,
+    displayToKg,
+    unitLabel,
+    addDaysIso,
+    recurringDates,
     dateToISO,
     isoToLocalDate,
     formatDuration,
+    formatDatePl,
     calcStreak,
     calcTotalSessions,
     calcVolumeInRange,

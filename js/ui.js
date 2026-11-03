@@ -13,9 +13,12 @@
   }
 
   let toastTimer = null;
-  function showToast(msg) {
+  /** type: 'success' | 'error' | undefined (informacja). Kolor kropki niesie znaczenie, tekst zawsze jest czytelny. */
+  function showToast(msg, type) {
     const el = document.getElementById('toast');
     el.textContent = msg;
+    el.classList.remove('toast-success', 'toast-error');
+    if (type) el.classList.add(`toast-${type}`);
     el.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
@@ -30,6 +33,19 @@
     sheetBody.innerHTML = bodyHtml;
     sheetBackdrop.classList.add('active');
     if (typeof onMount === 'function') onMount(sheetBody);
+  }
+
+  /** Przycisk w stanie ładowania na czas operacji asynchronicznej (blokuje też podwójne kliknięcie). */
+  async function withLoading(btn, fn) {
+    if (!btn || btn.classList.contains('is-loading')) return;
+    btn.classList.add('is-loading');
+    btn.disabled = true;
+    try {
+      return await fn();
+    } finally {
+      btn.classList.remove('is-loading');
+      btn.disabled = false;
+    }
   }
 
   function closeSheet() {
@@ -81,10 +97,14 @@
 
     gridEl.innerHTML = html;
     gridEl.querySelectorAll('.calendar-day[data-date]').forEach((el) => {
-      el.addEventListener('click', () => {
+      const fire = () => {
         const iso = el.getAttribute('data-date');
         const dayInfo = cal.days.find((d) => d.date === iso);
         onDayClick(iso, dayInfo);
+      };
+      el.addEventListener('click', fire);
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fire(); }
       });
     });
   }
@@ -93,13 +113,27 @@
     return window.confirm(message);
   }
 
+  // Aktualne ustawienia w pamięci (ustawiane przez Profile), żeby każdy panel znał jednostkę bez czytania bazy.
+  const currentSettings = { jednostki: 'kg' };
+  function setSettings(s) { Object.assign(currentSettings, s || {}); }
+  function unit() { return currentSettings.jednostki === 'lb' ? 'lb' : 'kg'; }
+  function unitLabel() { return WorkoutUtils.unitLabel(unit()); }
+  function kgOut(kg) { return WorkoutUtils.kgToDisplay(kg, unit()); }
+  function kgIn(value) { return WorkoutUtils.displayToKg(value, unit()); }
+
   window.UI = {
     escapeHtml,
     showToast,
+    withLoading,
     openSheet,
     closeSheet,
     buildOptions,
     renderCalendar,
     confirmAction,
+    setSettings,
+    unit,
+    unitLabel,
+    kgOut,
+    kgIn,
   };
 })();

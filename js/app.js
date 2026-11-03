@@ -26,7 +26,7 @@
     if (renderFn) renderFn();
   }
 
-  function init() {
+  async function init() {
     document.querySelectorAll('.nav-btn').forEach((btn) => {
       btn.addEventListener('click', () => switchView(btn.getAttribute('data-view')));
     });
@@ -36,8 +36,13 @@
     window.History.init();
     window.Profile.init();
 
-    window.Profile.render(); // wczytaj/zastosuj ustawienia (np. motyw) od razu
-    switchView('dashboard');
+    // ustawienia (motyw, jednostki) muszą być znane zanim narysujemy jakikolwiek panel
+    await window.Profile.render();
+    // dopisz sesje z szablonów, które mają ustawione dni tygodnia
+    try { await window.Planner.syncRecurring(); } catch (err) { /* harmonogram nie blokuje startu */ }
+
+    // jeśli aplikacja została zamknięta w trakcie treningu, wróć prosto do niego
+    switchView(window.Timer.hasActiveSession() ? 'timer' : 'dashboard');
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').catch(() => {

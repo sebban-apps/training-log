@@ -31,6 +31,15 @@
     return exercises.find((e) => e.id === id)?.nazwa || 'Ćwiczenie';
   }
 
+  /** Typ pomiaru ćwiczenia we wpisie. Nowe wpisy mają go zapisanego, starsze bierzemy z biblioteki ćwiczeń. */
+  function measureType(ex, exercises) {
+    if (ex.typ_pomiaru) return ex.typ_pomiaru;
+    const lib = exercises.find((e) => e.id === ex.exercise_id);
+    if (lib) return lib.typ_pomiaru;
+    // ćwiczenie usunięte z biblioteki: zgadujemy po danych, czy któraś seria ma czas
+    return (ex.serie || []).some((s) => s.czas !== null && s.czas !== undefined) ? 'czas' : 'powtorzenia';
+  }
+
   function renderPRs(history, exercises) {
     const prs = WorkoutUtils.calcPRs(history);
     const el = document.getElementById('pr-list');
@@ -41,8 +50,12 @@
     }
     el.innerHTML = entries
       .map(([exId, pr]) => {
-        const value = pr.kg ? `${pr.kg} kg` : pr.czas ? `${pr.czas}s` : `${pr.powt} powt.`;
-        return `<div class="list-item"><div class="title">${UI.escapeHtml(exName(exercises, Number(exId)))}</div><span class="num" style="font-weight:700">${value}</span></div>`;
+        const value = pr.kg
+          ? `${UI.kgOut(pr.kg)} ${UI.unitLabel()}${pr.powt ? ` × ${pr.powt}` : ''}`
+          : pr.czas
+          ? `${pr.czas} s`
+          : `${pr.powt} powt.`;
+        return `<div class="list-item"><div class="title">${UI.escapeHtml(exName(exercises, Number(exId)))}</div><span class="pr-value">${value}</span></div>`;
       })
       .join('');
   }
@@ -58,10 +71,10 @@
       .map(
         (e) => `
       <div class="list-item">
-        <div><div class="title">${UI.escapeHtml(e.nazwa_treningu || 'Trening')}</div><div class="sub">${e.data} · ${WorkoutUtils.formatDuration(e.czas_trwania || 0)}</div></div>
+        <div><div class="title">${UI.escapeHtml(e.nazwa_treningu || 'Trening')}</div><div class="sub">${WorkoutUtils.formatDatePl(e.data)} · ${WorkoutUtils.formatDuration(e.czas_trwania || 0)}</div></div>
         <div class="item-actions">
-          <button class="icon-btn" data-edit-hist="${e.id}"><svg><use href="#i-edit"/></svg></button>
-          <button class="icon-btn danger" data-del-hist="${e.id}"><svg><use href="#i-trash"/></svg></button>
+          <button class="icon-btn" data-edit-hist="${e.id}" aria-label="Edytuj"><svg><use href="#i-edit"/></svg></button>
+          <button class="icon-btn danger" data-del-hist="${e.id}" aria-label="Usuń"><svg><use href="#i-trash"/></svg></button>
         </div>
       </div>`
       )
@@ -81,22 +94,28 @@
   }
 
   function openEntryDetail(entry, exercises) {
+    const unitLbl = UI.unitLabel();
+    const types = entry.cwiczenia.map((ex) => measureType(ex, exercises));
     const rows = entry.cwiczenia
-      .map(
-        (ex, exIdx) => `
+      .map((ex, exIdx) => {
+        const isTime = types[exIdx] === 'czas';
+        return `
       <div class="section-title">${UI.escapeHtml(exName(exercises, ex.exercise_id))}</div>
+      <div class="set-row set-head">
+        <span></span><span>${isTime ? 'Czas (s)' : 'Powt.'}</span><span>${unitLbl}</span><span></span>
+      </div>
       ${ex.serie
         .map(
           (s, sIdx) => `
         <div class="set-row" data-ex="${exIdx}" data-set="${sIdx}">
           <span class="set-idx">${sIdx + 1}</span>
-          <input type="number" class="h-cel" value="${(s.czas ?? s.powt) ?? ''}" placeholder="powt./s" />
-          <input type="number" class="h-kg" value="${s.kg ?? ''}" placeholder="kg" step="0.5" />
+          <input type="number" class="h-cel" value="${(isTime ? s.czas : s.powt) ?? ''}" placeholder="${isTime ? 'sek.' : 'powt.'}" />
+          <input type="number" class="h-kg" value="${UI.kgOut(s.kg) ?? ''}" placeholder="${unitLbl}" step="0.5" />
           <span></span>
         </div>`
         )
-        .join('')}`
-      )
+        .join('')}`;
+      })
       .join('');
 
     const html = `
@@ -112,23 +131,27 @@
         updated.nazwa_treningu = body.querySelector('#f-hist-nazwa').value.trim();
         updated.data = body.querySelector('#f-hist-data').value;
         updated.notatka_ogolna = body.querySelector('#f-hist-notatka').value.trim();
+        if (!updated.data) { UI.showToast('Podaj datę treningu', 'error'); return; }
         updated.cwiczenia = entry.cwiczenia.map((ex, exIdx) => ({
           ...ex,
+          typ_pomiaru: types[exIdx],
           serie: ex.serie.map((s, sIdx) => {
             const row = body.querySelector(`.set-row[data-ex="${exIdx}"][data-set="${sIdx}"]`);
             const celVal = row.querySelector('.h-cel').value;
             const kgVal = row.querySelector('.h-kg').value;
+            const cel = celVal ? Number(celVal) : null;
+            const isTime = types[exIdx] === 'czas';
             return {
               ...s,
-              powt: s.czas === null ? (celVal ? Number(celVal) : null) : s.powt,
-              czas: s.czas !== null ? (celVal ? Number(celVal) : null) : s.czas,
-              kg: kgVal ? Number(kgVal) : null,
+              powt: isTime ? s.powt ?? null : cel,
+              czas: isTime ? cel : s.czas ?? null,
+              kg: UI.kgIn(kgVal),
             };
           }),
         }));
         await DB.put('history_entries', updated);
         UI.closeSheet();
-        UI.showToast('Zapisano zmiany');
+        UI.showToast('Zapisano zmiany', 'success');
         render();
         if (window.Dashboard) window.Dashboard.render();
       });
